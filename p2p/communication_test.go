@@ -3,14 +3,12 @@ package p2p
 import (
 	"crypto/rand"
 	"encoding/base64"
-
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
-
-	"github.com/libp2p/go-libp2p-core/crypto"
 	. "gopkg.in/check.v1"
 
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/messages"
 )
 
 type CommunicationTestSuite struct{}
@@ -39,8 +37,8 @@ func checkExist(a []maddr.Multiaddr, b string) bool {
 }
 
 func (CommunicationTestSuite) TestEstablishP2pCommunication(c *C) {
-	bootstrapPeer := "/ip4/127.0.0.1/tcp/2220/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
-	bootstrapPrivKey := "6LABmWB4iXqkqOJ9H0YFEA2CSSx6bA7XAKGyI/TDtas="
+	bootstrapPeer := "/ip4/127.0.0.1/tcp/2220/p2p/12D3KooW9s3DW3RL1FofvK3E5vA3na23wpUqLjHsNUQYRdF42mAK"
+	bootstrapPrivKey := "G1ki5OiiPJ0yfaNZbpf2O1Y72xvdyKdI7WPcJdK//XcAr1AULH8UABRzGuv9oMWpJfU/y/TXCkEkFwJi1V26ZA=="
 	fakeExternalIP := "11.22.33.44"
 	fakeExternalMultiAddr := "/ip4/11.22.33.44/tcp/2220"
 	validMultiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
@@ -52,7 +50,7 @@ func (CommunicationTestSuite) TestEstablishP2pCommunication(c *C) {
 	c.Assert(comm.Start(privKey), IsNil)
 
 	defer comm.Stop()
-	sk1, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
+	sk1, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	sk1raw, _ := sk1.Raw()
 	c.Assert(err, IsNil)
 	comm2, err := NewCommunication("commTest", []maddr.Multiaddr{validMultiAddr}, 2221, "")
@@ -62,7 +60,7 @@ func (CommunicationTestSuite) TestEstablishP2pCommunication(c *C) {
 	defer comm2.Stop()
 
 	// we connect to an invalid peer and see
-	sk2, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
+	sk2, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	c.Assert(err, IsNil)
 	id, err := peer.IDFromPrivateKey(sk2)
 	c.Assert(err, IsNil)
@@ -83,9 +81,9 @@ func (CommunicationTestSuite) TestEstablishP2pCommunication(c *C) {
 	defer comm4.Stop()
 
 	// we add test for external ip advertising
-	c.Assert(checkExist(comm.host.Addrs(), fakeExternalMultiAddr), Equals, true)
-	ps := comm2.host.Peerstore()
-	c.Assert(checkExist(ps.Addrs(comm.host.ID()), fakeExternalMultiAddr), Equals, true)
-	ps = comm4.host.Peerstore()
-	c.Assert(checkExist(ps.Addrs(comm.host.ID()), fakeExternalMultiAddr), Equals, true)
+	c.Assert(checkExist(comm.GetHost().Addrs(), fakeExternalMultiAddr), Equals, true)
+	ps := comm2.GetHost().Peerstore()
+	c.Assert(checkExist(ps.Addrs(comm.GetHost().ID()), fakeExternalMultiAddr), Equals, true)
+	ps = comm4.GetHost().Peerstore()
+	c.Assert(checkExist(ps.Addrs(comm.GetHost().ID()), fakeExternalMultiAddr), Equals, true)
 }

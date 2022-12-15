@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
+	"github.com/libp2p/go-libp2p/core/peer"
 	. "gopkg.in/check.v1"
 )
 
@@ -39,13 +39,13 @@ func (s *PeerStatusTestSuite) TestPeerStatus(c *C) {
 
 	peerStatus := NewPeerStatus(peers, peers[0], peers[0].String(), 2)
 
-	ret, err := peerStatus.updatePeer(peers[2])
+	ret, err := peerStatus.updatePeer(peers[2], nil)
 	c.Assert(err, IsNil)
 	c.Assert(ret, Equals, false)
-	ret, err = peerStatus.updatePeer(peers[1])
+	ret, err = peerStatus.updatePeer(peers[1], nil)
 	c.Assert(err, IsNil)
 	c.Assert(ret, Equals, true)
-	ret, err = peerStatus.updatePeer(peers[2])
+	ret, err = peerStatus.updatePeer(peers[2], nil)
 	c.Assert(err, IsNil)
 	c.Assert(ret, Equals, false)
 	online, offline := peerStatus.getPeersStatus()
@@ -58,13 +58,13 @@ func (s *PeerStatusTestSuite) TestPeerStatus(c *C) {
 	c.Assert(ret, Equals, false)
 
 	unknownPeer := generateRandomPeers(c, 1)
-	_, err = peerStatus.updatePeer(unknownPeer[0])
+	_, err = peerStatus.updatePeer(unknownPeer[0], nil)
 	c.Assert(err, ErrorMatches, "key not found")
 
-	ret, err = peerStatus.updatePeer(peers[3])
+	ret, err = peerStatus.updatePeer(peers[3], nil)
 	c.Assert(err, IsNil)
 	c.Assert(ret, Equals, false)
-	ret, err = peerStatus.updatePeer(peers[4])
+	ret, err = peerStatus.updatePeer(peers[4], nil)
 	c.Assert(err, IsNil)
 	c.Assert(ret, Equals, false)
 }

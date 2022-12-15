@@ -4,9 +4,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/messages"
 )
 
 type PeerStatus struct {
@@ -17,8 +18,10 @@ type PeerStatus struct {
 	leaderResponse     *messages.JoinPartyLeaderComm
 	leaderResponseLock *sync.RWMutex
 	leader             string
+	leaderSetLock      *sync.RWMutex
 	threshold          int
 	reqCount           int
+	streams            *sync.Map
 }
 
 func (ps *PeerStatus) getLeaderResponse() *messages.JoinPartyLeaderComm {
@@ -50,6 +53,8 @@ func NewPeerStatus(peerNodes []peer.ID, myPeerID peer.ID, leader string, thresho
 		threshold:          threshold,
 		reqCount:           0,
 		leaderResponseLock: &sync.RWMutex{},
+		streams:            &sync.Map{},
+		leaderSetLock:      &sync.RWMutex{},
 	}
 	return peerStatus
 }
@@ -75,7 +80,7 @@ func (ps *PeerStatus) getPeersStatus() ([]peer.ID, []peer.ID) {
 	return online, offline
 }
 
-func (ps *PeerStatus) updatePeer(peerNode peer.ID) (bool, error) {
+func (ps *PeerStatus) updatePeer(peerNode peer.ID, stream network.Stream) (bool, error) {
 	ps.peerStatusLock.Lock()
 	defer ps.peerStatusLock.Unlock()
 	val, ok := ps.peersResponse[peerNode]
@@ -83,7 +88,11 @@ func (ps *PeerStatus) updatePeer(peerNode peer.ID) (bool, error) {
 		return false, errors.New("key not found")
 	}
 
-	if ps.leader == "NONE" {
+	ps.leaderSetLock.RLock()
+	leader := ps.leader
+	ps.leaderSetLock.RUnlock()
+
+	if leader == "NONE" {
 		if !val {
 			ps.peersResponse[peerNode] = true
 			return true, nil
@@ -97,6 +106,8 @@ func (ps *PeerStatus) updatePeer(peerNode peer.ID) (bool, error) {
 	}
 	if !val {
 		ps.peersResponse[peerNode] = true
+		// we store the stream for the peer to send the response back to peers
+		ps.streams.Store(peerNode, stream)
 		ps.reqCount++
 		if ps.reqCount >= ps.threshold {
 			return true, nil

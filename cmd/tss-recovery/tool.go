@@ -15,6 +15,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32"
 )
 
 type (
@@ -63,7 +64,7 @@ func getTssPubKey(x, y *big.Int) (string, sdk.AccAddress, error) {
 		Key: tssPubKey.SerializeCompressed(),
 	}
 
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pubKeyCompressed)
+	pubKey, err := legacybech32.MarshalPubKey(legacybech32.AccPK, &pubKeyCompressed)
 	addr := sdk.AccAddress(pubKeyCompressed.Address().Bytes())
 	return pubKey, addr, err
 }

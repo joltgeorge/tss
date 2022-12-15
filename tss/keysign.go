@@ -10,15 +10,15 @@ import (
 	"time"
 
 	tsslibcommon "github.com/binance-chain/tss-lib/common"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/keysign"
-	"github.com/joltgeorge/tss/messages"
-	"github.com/joltgeorge/tss/p2p"
-	"github.com/joltgeorge/tss/storage"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/keysign"
+	"github.com/joltify-finance/tss/messages"
+	"github.com/joltify-finance/tss/p2p"
+	"github.com/joltify-finance/tss/storage"
 )
 
 func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgsToSign [][]byte, sigChan chan string) (keysign.Response, error) {
@@ -202,6 +202,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		t.privateKey,
 		t.p2pCommunication,
 		t.stateManager,
+		//since we have 4 message type
 		len(req.Messages),
 	)
 

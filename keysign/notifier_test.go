@@ -9,8 +9,8 @@ import (
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	. "gopkg.in/check.v1"
 
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
 )
 
 type NotifierTestSuite struct{}
@@ -43,12 +43,12 @@ func (NotifierTestSuite) TestNewNotifier(c *C) {
 }
 
 func (NotifierTestSuite) TestNotifierHappyPath(c *C) {
-	messageToSign := "yhEwrxWuNBGnPT/L7PNnVWg7gFWNzCYTV+GuX3tKRH8="
+	messageToSign := "br8L1Aq3VxJKrl+OQAUhtgtDzkAOTV1hc06qtkdA1dE="
 	buf, err := base64.StdEncoding.DecodeString(messageToSign)
 	c.Assert(err, IsNil)
 	messageID, err := common.MsgToHashString(buf)
 	c.Assert(err, IsNil)
-	poolPubKey := `thorpub1addwnpepq0ul3xt882a6nm6m7uhxj4tk2n82zyu647dyevcs5yumuadn4uamqx7neak`
+	poolPubKey := `oppypub1addwnpepqt5expfkfrk4kaujcyq7pmwu3sgycrzrtx64vdrdknusvx0prs096lf25u6`
 	n, err := NewNotifier(messageID, [][]byte{buf}, poolPubKey)
 	c.Assert(err, IsNil)
 	c.Assert(n, NotNil)

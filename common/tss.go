@@ -9,16 +9,16 @@ import (
 	"sync"
 
 	btss "github.com/binance-chain/tss-lib/tss"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/messages"
-	"github.com/joltgeorge/tss/p2p"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/messages"
+	"github.com/joltify-finance/tss/p2p"
 )
 
 // PartyInfo the information used by tss key gen and key sign
@@ -746,7 +746,7 @@ func (t *TssCommon) processTSSMsg(wireMsg *messages.WireMessage, msgType message
 		return errors.New("error in find the data owner")
 	}
 	keyBytes := dataOwner.GetKey()
-	var pk secp256k1.PubKey
+	var pk ed25519.PubKey
 	pk = keyBytes
 	ok = verifySignature(pk, wireMsg.Message, wireMsg.Sig, t.msgID)
 	if !ok {

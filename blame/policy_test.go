@@ -7,21 +7,20 @@ import (
 
 	bkg "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	. "gopkg.in/check.v1"
 
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/messages"
 )
 
 var (
-	testPubKeys = [...]string{"thorpub1addwnpepqtdklw8tf3anjz7nn5fly3uvq2e67w2apn560s4smmrt9e3x52nt2svmmu3", "thorpub1addwnpepqtspqyy6gk22u37ztra4hq3hdakc0w0k60sfy849mlml2vrpfr0wvm6uz09", "thorpub1addwnpepq2ryyje5zr09lq7gqptjwnxqsy2vcdngvwd6z7yt5yjcnyj8c8cn559xe69", "thorpub1addwnpepqfjcw5l4ay5t00c32mmlky7qrppepxzdlkcwfs2fd5u73qrwna0vzag3y4j"}
-
-	testPeers = []string{
-		"16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh",
-		"16Uiu2HAm2FzqoUdS6Y9Esg2EaGcAG5rVe1r6BFNnmmQr2H3bqafa",
-		"16Uiu2HAmACG5DtqmQsHtXg4G2sLS65ttv84e7MrL4kapkjfmhxAp",
-		"16Uiu2HAmAWKWf5vnpiAhfdSQebTbbB3Bg35qtyG7Hr4ce23VFA8V",
+	testPubKeys = []string{"oppypub1zcjduepqjykgrc8kehvvauxuq9regzvueec2lz3xwtcpf9mw77pu5h8z9r2sysjdf9", "oppypub1zcjduepqspqxa9406qvr0jrtxdlc52tul6lfx4ppxctgaxefyccdvk95e8eqklumzy", "oppypub1zcjduepqxhdum6ce45xympd2kw7dz64lkkvvul6ck2zlh6de22xs4k64039sjv9l3p", "oppypub1zcjduepqeu2qzchm86zxhf2jw9jqj40u86wh7cyk7dv2qdlc3reuvm8pwc5q0nqqwx"}
+	testPeers   = []string{
+		"12D3KooWKb4eWT3mxHCvMGp3pzYfi3R22BAQ6LG5AebsqjFGYJsN",
+		"12D3KooWJT1LZcwCJ321umRW2mWFE3ooiKzkuzHJVmtUPjzfYbfw",
+		"12D3KooWDScAyrV1SnUPD4PrcE2PpFvu2aoMHUddpaJSfkyBGGVY",
+		"12D3KooWPkiFkYHxgUhfahdSVh23rnFxXVUT5k1RpLqPTNzkpCb1",
 	}
 )
 
@@ -116,7 +115,7 @@ func (p *policyTestSuite) TestTssWrongShareBlame(c *C) {
 	}
 	target, err := p.blameMgr.TssWrongShareBlame(&msg)
 	c.Assert(err, IsNil)
-	c.Assert(target, Equals, "thorpub1addwnpepqfjcw5l4ay5t00c32mmlky7qrppepxzdlkcwfs2fd5u73qrwna0vzag3y4j")
+	c.Assert(target, Equals, "oppypub1zcjduepqjykgrc8kehvvauxuq9regzvueec2lz3xwtcpf9mw77pu5h8z9r2sysjdf9")
 }
 
 func (p *policyTestSuite) TestTssMissingShareBlame(c *C) {

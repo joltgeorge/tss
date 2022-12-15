@@ -1,7 +1,6 @@
 package keysign
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
@@ -11,18 +10,18 @@ import (
 
 	tsslibcommon "github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
-	"github.com/libp2p/go-libp2p-core/peer"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
+	"github.com/libp2p/go-libp2p/core/peer"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/p2p"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/p2p"
 )
 
 func TestSignatureNotifierHappyPath(t *testing.T) {
-	poolPubKey := `thorpub1addwnpepq0ul3xt882a6nm6m7uhxj4tk2n82zyu647dyevcs5yumuadn4uamqx7neak`
-	messageToSign := "yhEwrxWuNBGnPT/L7PNnVWg7gFWNzCYTV+GuX3tKRH8="
+	poolPubKey := "oppypub1addwnpepqt5expfkfrk4kaujcyq7pmwu3sgycrzrtx64vdrdknusvx0prs096lf25u6"
+	messageToSign := "br8L1Aq3VxJKrl+OQAUhtgtDzkAOTV1hc06qtkdA1dE="
 	buf, err := base64.StdEncoding.DecodeString(messageToSign)
 	assert.Nil(t, err)
 	messageID, err := common.MsgToHashString(buf)
@@ -31,7 +30,7 @@ func TestSignatureNotifierHappyPath(t *testing.T) {
 	id1 := tnet.RandIdentityOrFatal(t)
 	id2 := tnet.RandIdentityOrFatal(t)
 	id3 := tnet.RandIdentityOrFatal(t)
-	mn := mocknet.New(context.Background())
+	mn := mocknet.New()
 	// add peers to mock net
 
 	a1 := tnet.RandLocalTCPAddress()

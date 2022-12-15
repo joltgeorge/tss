@@ -5,24 +5,26 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	dutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
-	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	drouting "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	maddr "github.com/multiformats/go-multiaddr"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/messages"
 )
 
 var (
@@ -50,7 +52,6 @@ type Communication struct {
 	bootstrapPeers   []maddr.Multiaddr
 	logger           zerolog.Logger
 	listenAddr       maddr.Multiaddr
-	host             host.Host
 	wg               *sync.WaitGroup
 	stopChan         chan struct{} // channel to indicate whether we should stop
 	subscribers      map[messages.THORChainTSSMessageType]*MessageIDSubscriber
@@ -59,6 +60,7 @@ type Communication struct {
 	BroadcastMsgChan chan *messages.BroadcastMsgChan
 	externalAddr     maddr.Multiaddr
 	streamMgr        *StreamMgr
+	dht              *dht.IpfsDHT
 }
 
 // NewCommunication create a new instance of Communication
@@ -92,12 +94,12 @@ func NewCommunication(rendezvous string, bootstrapPeers []maddr.Multiaddr, port 
 
 // GetHost return the host
 func (c *Communication) GetHost() host.Host {
-	return c.host
+	return c.dht.Host()
 }
 
 // GetLocalPeerID from p2p host
 func (c *Communication) GetLocalPeerID() string {
-	return c.host.ID().String()
+	return c.dht.Host().ID().String()
 }
 
 // Broadcast message to Peers
@@ -130,7 +132,7 @@ func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, msgID stri
 
 func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) error {
 	// don't send to ourselves
-	if pID == c.host.ID() {
+	if pID == c.dht.Host().ID() {
 		return nil
 	}
 	stream, err := c.connectToOnePeer(pID)
@@ -141,7 +143,14 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) err
 		return nil
 	}
 
+	err = stream.Scope().ReserveMemory(MaxPayload, network.ReservationPriorityAlways)
+	if err != nil {
+		c.logger.Error().Err(err).Msgf("fail to reserve the memory in tss write stream")
+		return err
+	}
+
 	defer func() {
+		stream.Scope().ReleaseMemory(MaxPayload)
 		c.streamMgr.AddStream(msgID, stream)
 	}()
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
@@ -189,6 +198,13 @@ func (c *Communication) handleStream(stream network.Stream) {
 	peerID := stream.Conn().RemotePeer().String()
 	c.logger.Debug().Msgf("handle stream from peer: %s", peerID)
 	// we will read from that stream
+
+	err := stream.Scope().ReserveMemory(MaxPayload, network.ReservationPriorityAlways)
+	if err != nil {
+		c.logger.Error().Err(err).Msgf("fail to reserve the memory in tss handle  stream")
+		return
+	}
+	defer stream.Scope().ReleaseMemory(MaxPayload)
 	c.readFromStream(stream)
 }
 
@@ -211,7 +227,7 @@ func (c *Communication) bootStrapConnectivityCheck() error {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 			defer cancel()
 			defer wg.Done()
-			outChan := ping.Ping(ctx, c.host, peer.ID)
+			outChan := ping.Ping(ctx, c.GetHost(), peer.ID)
 			select {
 			case ret, ok := <-outChan:
 				if !ok {
@@ -238,7 +254,7 @@ func (c *Communication) bootStrapConnectivityCheck() error {
 
 func (c *Communication) startChannel(privKeyBytes []byte) error {
 	ctx := context.Background()
-	p2pPriKey, err := crypto.UnmarshalSecp256k1PrivateKey(privKeyBytes)
+	p2pPriKey, err := crypto.UnmarshalEd25519PrivateKey(privKeyBytes)
 	if err != nil {
 		c.logger.Error().Msgf("error is %f", err)
 		return err
@@ -250,16 +266,73 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		}
 		return addrs
 	}
+	// old version
+	//limiter := rcmgr.NewDefaultFixedLimiter(1024 * 1024 * 1024 * 2) //2G limitation
+	//limiterSys := limiter.SystemLimits.WithStreamLimit(1024, 1024, 2048)
+	//limiterStream := limiter.StreamLimits.WithStreamLimit(1024, 1024, 2048)
+	//
+	//limiterStream = limiterStream.WithMemoryLimit(1, 1024*1024*1024, 1024*1024*1024)                 //1Glimitation
+	//limiterTransistent := limiter.TransientLimits.WithMemoryLimit(1, 1024*1024*1024, 1024*1024*1024) //1Glimitation
+	//limiter.StreamLimits = limiterStream
+	//limiter.TransientLimits = limiterTransistent
+	//limiter.SystemLimits = limiterSys
 
-	h, err := libp2p.New(ctx,
+	limits := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&limits)
+
+	mgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()))
+	if err != nil {
+		panic("should never fail")
+	}
+
+	//go func() {
+	//	for {
+	//		<-time.After(30 * time.Second)
+	//		rcm.ViewSystem(func(scope network.ResourceScope) error {
+	//			stat := scope.Stat()
+	//			fmt.Println("System:",
+	//				"\n\t memory", stat.Memory,
+	//				"\n\t numFD", stat.NumFD,
+	//				"\n\t connsIn", stat.NumConnsInbound,
+	//				"\n\t connsOut", stat.NumConnsOutbound,
+	//				"\n\t streamIn", stat.NumStreamsInbound,
+	//				"\n\t streamOut", stat.NumStreamsOutbound)
+	//			return nil
+	//		})
+	//		rcm.ViewTransient(func(scope network.ResourceScope) error {
+	//			stat := scope.Stat()
+	//			fmt.Println("Transient:",
+	//				"\n\t memory:", stat.Memory,
+	//				"\n\t numFD:", stat.NumFD,
+	//				"\n\t connsIn:", stat.NumConnsInbound,
+	//				"\n\t connsOut:", stat.NumConnsOutbound,
+	//				"\n\t streamIn:", stat.NumStreamsInbound,
+	//				"\n\t streamOut:", stat.NumStreamsOutbound)
+	//			return nil
+	//		})
+	//		rcm.ViewProtocol(dht.ProtocolDHT, func(scope network.ProtocolScope) error {
+	//			stat := scope.Stat()
+	//			fmt.Println(dht.ProtocolDHT,
+	//				"\n\t memory:", stat.Memory,
+	//				"\n\t numFD:", stat.NumFD,
+	//				"\n\t connsIn:", stat.NumConnsInbound,
+	//				"\n\t connsOut:", stat.NumConnsOutbound,
+	//				"\n\t streamIn:", stat.NumStreamsInbound,
+	//				"\n\t streamOut:", stat.NumStreamsOutbound)
+	//			return nil
+	//		})
+	//	}
+	//}()
+
+	h, err := libp2p.New(
 		libp2p.ListenAddrs([]maddr.Multiaddr{c.listenAddr}...),
 		libp2p.Identity(p2pPriKey),
 		libp2p.AddrsFactory(addressFactory),
+		libp2p.ResourceManager(mgr),
 	)
 	if err != nil {
 		return fmt.Errorf("fail to create p2p host: %w", err)
 	}
-	c.host = h
 	c.logger.Info().Msgf("Host created, we are: %s, at: %s", h.ID(), h.Addrs())
 	h.SetStreamHandler(TSSProtocolID, c.handleStream)
 	// Start a DHT, for use in peer discovery. We can't just make a new DHT
@@ -274,6 +347,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 	if err = kademliaDHT.Bootstrap(ctx); err != nil {
 		return fmt.Errorf("fail to bootstrap DHT: %w", err)
 	}
+	c.dht = kademliaDHT
 
 	var connectionErr error
 	for i := 0; i < 5; i++ {
@@ -290,8 +364,8 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 
 	// We use a rendezvous point "meet me here" to announce our location.
 	// This is like telling your friends to meet you at the Eiffel Tower.
-	routingDiscovery := discovery.NewRoutingDiscovery(kademliaDHT)
-	discovery.Advertise(ctx, routingDiscovery, c.rendezvous)
+	routingDiscovery := drouting.NewRoutingDiscovery(kademliaDHT)
+	dutil.Advertise(ctx, routingDiscovery, c.rendezvous)
 	err = c.bootStrapConnectivityCheck()
 	if err != nil {
 		return err
@@ -302,15 +376,16 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 }
 
 func (c *Communication) connectToOnePeer(pID peer.ID) (network.Stream, error) {
-	c.logger.Debug().Msgf("peer:%s,current:%s", pID, c.host.ID())
+	c.logger.Debug().Msgf("peer:%s,current:%s", pID, c.dht.Host().ID())
 	// dont connect to itself
-	if pID == c.host.ID() {
+	if pID == c.dht.Host().ID() {
 		return nil, nil
 	}
 	c.logger.Debug().Msgf("connect to peer : %s", pID.String())
 	ctx, cancel := context.WithTimeout(context.Background(), TimeoutConnecting)
 	defer cancel()
-	stream, err := c.host.NewStream(ctx, pID, TSSProtocolID)
+	ctx = network.WithUseTransient(ctx, "tss")
+	stream, err := c.dht.Host().NewStream(ctx, pID, TSSProtocolID)
 	if err != nil {
 		return nil, fmt.Errorf("fail to create new stream to peer: %s, %w", pID, err)
 	}
@@ -336,7 +411,7 @@ func (c *Communication) connectToBootstrapPeers() error {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(context.Background(), TimeoutConnecting)
 			defer cancel()
-			if err := c.host.Connect(ctx, *pi); err != nil {
+			if err := c.dht.Host().Connect(ctx, *pi); err != nil {
 				c.logger.Error().Err(err).Msgf("fail to connect to %s", pi.String())
 				connRet <- false
 				return
@@ -354,12 +429,54 @@ func (c *Communication) connectToBootstrapPeers() error {
 	return errors.New("fail to connect to any peer")
 }
 
+func (c *Communication) refreshDht() {
+	defer c.wg.Done()
+	for {
+		select {
+		case <-time.After(time.Minute * 2):
+			result := c.dht.ForceRefresh()
+			err := <-result
+			if err != nil {
+				c.logger.Error().Err(err).Msgf("we have failed refresh the dht table with err")
+
+			} else {
+				c.logger.Info().Msgf("we have refresh the dht table successfully")
+			}
+
+			peers := c.dht.Host().Peerstore().Peers()
+			pingWg := &sync.WaitGroup{}
+			pingWg.Add(len(peers))
+			for i, el := range peers {
+				go func(i int, p peer.ID) {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+					defer cancel()
+					defer func() {
+						pingWg.Done()
+					}()
+					err := c.dht.Ping(ctx, p)
+					if err != nil {
+						c.logger.Error().Err(err).Msgf("fail to dht ping the node %v", p)
+						return
+					}
+					c.logger.Info().Msgf("we have dht pinged the node %v", p.String())
+				}(i, el)
+			}
+			pingWg.Wait()
+
+		case <-c.stopChan:
+			return
+		}
+	}
+}
+
 // Start will start the communication
 func (c *Communication) Start(priKeyBytes []byte) error {
 	err := c.startChannel(priKeyBytes)
 	if err == nil {
 		c.wg.Add(1)
 		go c.ProcessBroadcast()
+		//c.wg.Add(1)
+		//go c.refreshDht()
 	}
 	return err
 }
@@ -367,7 +484,7 @@ func (c *Communication) Start(priKeyBytes []byte) error {
 // Stop communication
 func (c *Communication) Stop() error {
 	// we need to stop the handler and the p2p services firstly, then terminate the our communication threads
-	if err := c.host.Close(); err != nil {
+	if err := c.dht.Host().Close(); err != nil {
 		c.logger.Err(err).Msg("fail to close host network")
 	}
 

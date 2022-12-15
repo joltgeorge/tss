@@ -1,8 +1,8 @@
 package tss
 
 import (
-	"github.com/joltgeorge/tss/keygen"
-	"github.com/joltgeorge/tss/keysign"
+	"github.com/joltify-finance/tss/keygen"
+	"github.com/joltify-finance/tss/keysign"
 )
 
 // Server define the necessary functionality should be provide by a TSS Server implementation

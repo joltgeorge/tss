@@ -1,7 +1,8 @@
 package conversion
 
 import (
-	"encoding/base64"
+	sdk256key "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,8 +18,8 @@ var _ = Suite(&KeyProviderTestSuite{})
 func TestGetPubKeysFromPeerIDs(t *testing.T) {
 	SetupBech32Prefix()
 	input := []string{
-		"16Uiu2HAmBdJRswX94UwYj6VLhh4GeUf9X3SjBRgTqFkeEMLmfk2M",
-		"16Uiu2HAkyR9dsFqkj1BqKw8ZHAUU2yur6ZLRJxPTiiVYP5uBMeMG",
+		"12D3KooWLaTQ4qDLJZtv6toT8ATS7rkLf8azxKqhsGt8ZxhoLgRX",
+		"12D3KooWSVeLmfxFoBfGq38Yi8wdTZh7mrhmro9zYfVwWH8KEpcY",
 	}
 	result, err := GetPubKeysFromPeerIDs(input)
 	if err != nil {
@@ -26,8 +27,8 @@ func TestGetPubKeysFromPeerIDs(t *testing.T) {
 		t.FailNow()
 	}
 	assert.Len(t, result, 2)
-	assert.Equal(t, "thorpub1addwnpepqtctt9l4fddeh0krvdpxmqsxa5z9xsa0ac6frqfhm9fq6c6u5lck5s8fm4n", result[0])
-	assert.Equal(t, "thorpub1addwnpepqga5cupfejfhtw507sh36fvwaekyjt5kwaw0cmgnpku0at2a87qqkp60t43", result[1])
+	assert.Equal(t, "oppypub1zcjduepqnls9drdepkay59gr2jkyut06mwcff9ydadedluq4w6vw95zz8x3qv7hqs2", result[0])
+	assert.Equal(t, "oppypub1zcjduepq7l9wmkvqvprdv0zmmeuwycjylx0rrju5gz20ae4ykfypagh632csprvxkt", result[1])
 	input1 := append(input, "whatever")
 	result, err = GetPubKeysFromPeerIDs(input1)
 	assert.NotNil(t, err)
@@ -35,33 +36,30 @@ func TestGetPubKeysFromPeerIDs(t *testing.T) {
 }
 
 func (*KeyProviderTestSuite) TestGetPriKey(c *C) {
-	pk, err := GetPriKey("whatever")
-	c.Assert(err, NotNil)
-	c.Assert(pk, IsNil)
-	input := base64.StdEncoding.EncodeToString([]byte("whatever"))
-	pk, err = GetPriKey(input)
+	pk, err := GetPriKey("32whatever")
 	c.Assert(err, NotNil)
 	c.Assert(pk, IsNil)
 	pk, err = GetPriKey(testPriKey)
 	c.Assert(err, IsNil)
 	c.Assert(pk, NotNil)
-	result, err := GetPriKeyRawBytes(pk)
-	c.Assert(err, IsNil)
-	c.Assert(result, NotNil)
-	c.Assert(result, HasLen, 32)
+	//result, err := GetPriKeyRawBytes(pk)
+	//c.Assert(err, IsNil)
+	//c.Assert(result, NotNil)
+	//c.Assert(result, HasLen, 32)
 }
 
 func (KeyProviderTestSuite) TestGetPeerIDs(c *C) {
+	SetupBech32Prefix()
 	pubKeys := []string{
-		"thorpub1addwnpepqtctt9l4fddeh0krvdpxmqsxa5z9xsa0ac6frqfhm9fq6c6u5lck5s8fm4n",
-		"thorpub1addwnpepqga5cupfejfhtw507sh36fvwaekyjt5kwaw0cmgnpku0at2a87qqkp60t43",
+		"oppypub1zcjduepqnls9drdepkay59gr2jkyut06mwcff9ydadedluq4w6vw95zz8x3qv7hqs2",
+		"oppypub1zcjduepq7l9wmkvqvprdv0zmmeuwycjylx0rrju5gz20ae4ykfypagh632csprvxkt",
 	}
 	peers, err := GetPeerIDs(pubKeys)
 	c.Assert(err, IsNil)
 	c.Assert(peers, NotNil)
 	c.Assert(peers, HasLen, 2)
-	c.Assert(peers[0].String(), Equals, "16Uiu2HAmBdJRswX94UwYj6VLhh4GeUf9X3SjBRgTqFkeEMLmfk2M")
-	c.Assert(peers[1].String(), Equals, "16Uiu2HAkyR9dsFqkj1BqKw8ZHAUU2yur6ZLRJxPTiiVYP5uBMeMG")
+	c.Assert(peers[0].String(), Equals, "12D3KooWLaTQ4qDLJZtv6toT8ATS7rkLf8azxKqhsGt8ZxhoLgRX")
+	c.Assert(peers[1].String(), Equals, "12D3KooWSVeLmfxFoBfGq38Yi8wdTZh7mrhmro9zYfVwWH8KEpcY")
 	pubKeys1 := append(pubKeys, "helloworld")
 	peers, err = GetPeerIDs(pubKeys1)
 	c.Assert(err, NotNil)
@@ -69,9 +67,10 @@ func (KeyProviderTestSuite) TestGetPeerIDs(c *C) {
 }
 
 func (KeyProviderTestSuite) TestGetPeerIDFromPubKey(c *C) {
-	pID, err := GetPeerIDFromPubKey("thorpub1addwnpepqtctt9l4fddeh0krvdpxmqsxa5z9xsa0ac6frqfhm9fq6c6u5lck5s8fm4n")
+	SetupBech32Prefix()
+	pID, err := GetPeerIDFromPubKey("oppypub1zcjduepqnls9drdepkay59gr2jkyut06mwcff9ydadedluq4w6vw95zz8x3qv7hqs2")
 	c.Assert(err, IsNil)
-	c.Assert(pID.String(), Equals, "16Uiu2HAmBdJRswX94UwYj6VLhh4GeUf9X3SjBRgTqFkeEMLmfk2M")
+	c.Assert(pID.String(), Equals, "12D3KooWLaTQ4qDLJZtv6toT8ATS7rkLf8azxKqhsGt8ZxhoLgRX")
 	pID1, err := GetPeerIDFromPubKey("whatever")
 	c.Assert(err, NotNil)
 	c.Assert(pID1.String(), Equals, "")
@@ -81,6 +80,8 @@ func (KeyProviderTestSuite) TestCheckKeyOnCurve(c *C) {
 	_, err := CheckKeyOnCurve("aa")
 	c.Assert(err, NotNil)
 	SetupBech32Prefix()
-	_, err = CheckKeyOnCurve("thorpub1addwnpepqtctt9l4fddeh0krvdpxmqsxa5z9xsa0ac6frqfhm9fq6c6u5lck5s8fm4n")
+	sk := sdk256key.GenPrivKey()
+	pk, _ := legacybech32.MarshalPubKey(legacybech32.AccPK, sk.PubKey())
+	_, err = CheckKeyOnCurve(pk)
 	c.Assert(err, IsNil)
 }

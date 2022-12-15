@@ -3,11 +3,11 @@ package tss
 import (
 	"time"
 
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/keygen"
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/keygen"
+	"github.com/joltify-finance/tss/messages"
 )
 
 func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {

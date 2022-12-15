@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"golang.org/x/crypto/sha3"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,44 +14,46 @@ import (
 	"testing"
 	"time"
 
+	btss "github.com/binance-chain/tss-lib/tss"
+
+	"github.com/tendermint/tendermint/crypto/ed25519"
+
 	"github.com/ipfs/go-log"
 
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	tcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-
 	btsskeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
-	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/libp2p/go-libp2p/core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
+	tcrypto "github.com/tendermint/tendermint/crypto"
 	. "gopkg.in/check.v1"
 
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/messages"
-	"github.com/joltgeorge/tss/p2p"
-	"github.com/joltgeorge/tss/storage"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/messages"
+	"github.com/joltify-finance/tss/p2p"
+	"github.com/joltify-finance/tss/storage"
 )
 
 var (
 	testPubKeys = []string{
-		"thorpub1addwnpepq2ryyje5zr09lq7gqptjwnxqsy2vcdngvwd6z7yt5yjcnyj8c8cn559xe69",
-		"thorpub1addwnpepqfjcw5l4ay5t00c32mmlky7qrppepxzdlkcwfs2fd5u73qrwna0vzag3y4j",
-		"thorpub1addwnpepqtdklw8tf3anjz7nn5fly3uvq2e67w2apn560s4smmrt9e3x52nt2svmmu3",
-		"thorpub1addwnpepqtspqyy6gk22u37ztra4hq3hdakc0w0k60sfy849mlml2vrpfr0wvm6uz09",
+		"oppypub1zcjduepq00tnx3z2qfqjzvrv77r5f0rqv03a0mtt0amaxwg2r8pc2sa0h9xqhz6gu0",
+		"oppypub1zcjduepqfza4lvvkejxnwux8w7htrxvc4raflls6ga8qxecvjm8e5hck03gs7n2auy",
+		"oppypub1zcjduepqp9ua9kuc5ket8c9llvvzs8n0jfc89zvpufkz0tru4jjgnqq7d3dqmrkzzm",
+		"oppypub1zcjduepqvaqyseacqu6ve2nphk8n9sc774gnfq4sa949cnyh5y3q60xsqhlswzgk58",
 	}
+
 	testPriKeyArr = []string{
-		"6LABmWB4iXqkqOJ9H0YFEA2CSSx6bA7XAKGyI/TDtas=",
-		"528pkgjuCWfHx1JihEjiIXS7jfTS/viEdAbjqVvSifQ=",
-		"JFB2LIJZtK+KasK00NcNil4PRJS4c4liOnK0nDalhqc=",
-		"vLMGhVXMOXQVnAE3BUU8fwNj/q0ZbndKkwmxfS5EN9Y=",
+		"Tz0PZz9Zdc0kWTLUEmy8/72Lf0mYGc+3UZUzeWZxghp71zNESgJBITBs94dEvGBj49fta3930zkKGcOFQ6+5TA==",
+		"RC7Zv+4IdSqQEl2iF5v60Vthol4U/WEAKE0wafntZ4xIu1+xlsyNN3DHd66xmZio+p/+GkdOA2cMls+aXxZ8UQ==",
+		"1TiazFBM2juefEtprRS44GmmKJfxKj5s08jLpZ/8jhgJedLbmKWys+C/+xgoHm+ScHKJgeJsJ6x8rKSJgB5sWg==",
+		"kJPByiRtUvGJ/pLJuDbBWCkqMxnDBsdJ5th9Ov/PG2dnQEhnuAc0zKphvY8ywx71UTSCsOlqXEyXoSINPNAF/w==",
 	}
 
 	testNodePrivkey = []string{
-		"ZThiMDAxOTk2MDc4ODk3YWE0YThlMjdkMWY0NjA1MTAwZDgyNDkyYzdhNmMwZWQ3MDBhMWIyMjNmNGMzYjVhYg==",
-		"ZTc2ZjI5OTIwOGVlMDk2N2M3Yzc1MjYyODQ0OGUyMjE3NGJiOGRmNGQyZmVmODg0NzQwNmUzYTk1YmQyODlmNA==",
-		"MjQ1MDc2MmM4MjU5YjRhZjhhNmFjMmI0ZDBkNzBkOGE1ZTBmNDQ5NGI4NzM4OTYyM2E3MmI0OWMzNmE1ODZhNw==",
-		"YmNiMzA2ODU1NWNjMzk3NDE1OWMwMTM3MDU0NTNjN2YwMzYzZmVhZDE5NmU3NzRhOTMwOWIxN2QyZTQ0MzdkNg==",
+		"Tz0PZz9Zdc0kWTLUEmy8/72Lf0mYGc+3UZUzeWZxghp71zNESgJBITBs94dEvGBj49fta3930zkKGcOFQ6+5TA==",
+		"RC7Zv+4IdSqQEl2iF5v60Vthol4U/WEAKE0wafntZ4xIu1+xlsyNN3DHd66xmZio+p/+GkdOA2cMls+aXxZ8UQ==",
+		"1TiazFBM2juefEtprRS44GmmKJfxKj5s08jLpZ/8jhgJedLbmKWys+C/+xgoHm+ScHKJgeJsJ6x8rKSJgB5sWg==",
+		"kJPByiRtUvGJ/pLJuDbBWCkqMxnDBsdJ5th9Ov/PG2dnQEhnuAc0zKphvY8ywx71UTSCsOlqXEyXoSINPNAF/w==",
 	}
 
 	targets = []string{
@@ -78,12 +79,10 @@ func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
 	common.InitLog("info", true, "keygen_test")
 	conversion.SetupBech32Prefix()
 	for _, el := range testNodePrivkey {
-		priHexBytes, err := base64.StdEncoding.DecodeString(el)
+		priBytes, err := base64.StdEncoding.DecodeString(el)
 		c.Assert(err, IsNil)
-		rawBytes, err := hex.DecodeString(string(priHexBytes))
-		c.Assert(err, IsNil)
-		var priKey secp256k1.PrivKey
-		priKey = rawBytes[:32]
+		var priKey ed25519.PrivKey
+		priKey = priBytes
 		s.nodePrivKeys = append(s.nodePrivKeys, priKey)
 	}
 
@@ -104,13 +103,14 @@ func (s *TssKeygenTestSuite) TearDownSuite(c *C) {
 
 // SetUpTest set up environment for test key gen
 func (s *TssKeygenTestSuite) SetUpTest(c *C) {
+
 	ports := []int{
 		18666, 18667, 18668, 18669,
 	}
 	s.partyNum = 4
 	s.comms = make([]*p2p.Communication, s.partyNum)
 	s.stateMgrs = make([]storage.LocalStateManager, s.partyNum)
-	bootstrapPeer := "/ip4/127.0.0.1/tcp/18666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
+	bootstrapPeer := "/ip4/127.0.0.1/tcp/18666/p2p/12D3KooWJ9ne4fSbjE4bZdsikkmxZYurdDDr74Lx4Ghm73ZqSKwZ"
 	multiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
 	c.Assert(err, IsNil)
 	s.preParams = getPreparams(c)
@@ -132,10 +132,7 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 
 	for i := 0; i < s.partyNum; i++ {
 		baseHome := path.Join(os.TempDir(), strconv.Itoa(i))
-		h := sha3.New256()
-		h.Write(s.nodePrivKeys[i].Bytes())
-		sk := h.Sum(nil)
-		fMgr, err := storage.NewFileStateMgr(baseHome, sk)
+		fMgr, err := storage.NewFileStateMgr(baseHome)
 		c.Assert(err, IsNil)
 		s.stateMgrs[i] = fMgr
 	}
@@ -222,9 +219,11 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 }
 
 func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
+
+	log.SetLogLevel("tss-lib", "info")
 	conf := common.TssConfig{
-		KeyGenTimeout:   20 * time.Second,
-		KeySignTimeout:  20 * time.Second,
+		KeyGenTimeout:   8 * time.Second,
+		KeySignTimeout:  10 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
 	wg := sync.WaitGroup{}
@@ -235,7 +234,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 			defer wg.Done()
 			var localpubKey []string
 			localpubKey = append(localpubKey, testPubKeys...)
-			sort.Strings(testPubKeys)
+			sort.Strings(localpubKey)
 			req := NewRequest(localpubKey, 10, "")
 			messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 			c.Assert(err, IsNil)
@@ -264,7 +263,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
 			if idx == 0 {
 				go func() {
-					time.Sleep(time.Millisecond * 2000)
+					time.Sleep(time.Millisecond * 200)
 					close(keygenInstance.stopChan)
 				}()
 			}

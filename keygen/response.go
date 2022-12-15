@@ -1,8 +1,8 @@
 package keygen
 
 import (
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/common"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/common"
 )
 
 // Response keygen response

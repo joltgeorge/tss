@@ -3,28 +3,29 @@ package tss
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/sha3"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32"
+
 	bkeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
-	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/libp2p/go-libp2p-core/peer"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/keygen"
-	"github.com/joltgeorge/tss/keysign"
-	"github.com/joltgeorge/tss/messages"
-	"github.com/joltgeorge/tss/monitor"
-	"github.com/joltgeorge/tss/p2p"
-	"github.com/joltgeorge/tss/storage"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/keygen"
+	"github.com/joltify-finance/tss/keysign"
+	"github.com/joltify-finance/tss/messages"
+	"github.com/joltify-finance/tss/monitor"
+	"github.com/joltify-finance/tss/p2p"
+	"github.com/joltify-finance/tss/storage"
 )
 
 // TssServer is the structure that can provide all keysign and key gen features
@@ -55,18 +56,15 @@ func NewTss(
 	externalIP string,
 ) (*TssServer, error) {
 	pk := coskey.PubKey{
-		Key: priKey.PubKey().Bytes()[:],
+		Key: priKey.PubKey().Bytes(),
 	}
 
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
+	pubKey, err := legacybech32.MarshalPubKey(legacybech32.AccPK, &pk)
 	if err != nil {
 		return nil, fmt.Errorf("fail to genearte the key: %w", err)
 	}
 
-	h := sha3.New256()
-	h.Write(priKey.Bytes())
-	aesKey := h.Sum(nil)
-	stateManager, err := storage.NewFileStateMgr(baseFolder, aesKey)
+	stateManager, err := storage.NewFileStateMgr(baseFolder)
 	if err != nil {
 		return nil, fmt.Errorf("fail to create file state manager")
 	}
@@ -98,7 +96,7 @@ func NewTss(
 		return nil, errors.New("invalid preparams")
 	}
 
-	priKeyRawBytes, err := conversion.GetPriKeyRawBytes(priKey)
+	priKeyRawBytes := priKey.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("fail to get private key")
 	}
@@ -106,6 +104,7 @@ func NewTss(
 		return nil, fmt.Errorf("fail to start p2p network: %w", err)
 	}
 	pc := p2p.NewPartyCoordinator(comm.GetHost(), conf.PartyTimeout)
+	pc.Start()
 	sn := keysign.NewSignatureNotifier(comm.GetHost())
 	metrics := monitor.NewMetric()
 	if conf.EnableMonitor {
@@ -139,11 +138,13 @@ func (t *TssServer) Start() error {
 func (t *TssServer) Stop() {
 	close(t.stopChan)
 	// stop the p2p and finish the p2p wait group
+
+	t.partyCoordinator.Stop()
 	err := t.p2pCommunication.Stop()
 	if err != nil {
 		t.logger.Error().Msgf("error in shutdown the p2p server")
 	}
-	t.partyCoordinator.Stop()
+
 	log.Info().Msg("The Tss and p2p server has been stopped successfully")
 }
 
@@ -165,6 +166,11 @@ func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 	sort.Strings(keys)
 	for _, el := range keys {
 		keyAccumulation += el
+	}
+	v, ok := request.(keygen.Request)
+	if ok {
+		heightStr := strconv.FormatInt(v.BlockHeight, 10)
+		keyAccumulation += heightStr
 	}
 	dat = append(dat, []byte(keyAccumulation)...)
 	return common.MsgToHashString(dat)
@@ -188,7 +194,7 @@ func (t *TssServer) joinParty(msgID, version string, blockHeight int64, particip
 		onlines, err := t.partyCoordinator.JoinPartyWithRetry(msgID, peersIDStr)
 		return onlines, "NONE", err
 	} else {
-		t.logger.Info().Msg("we apply the join party with a leader")
+		t.logger.Info().Msgf("we apply the join party with a leader msgID(%v)", msgID)
 
 		if len(participants) == 0 {
 			t.logger.Error().Msg("we fail to have any participants or passed by request")

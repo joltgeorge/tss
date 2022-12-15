@@ -1,9 +1,1 @@
-{
-  "signature": {
-    "signature": "SIGPEMiQOWhg5ugY/4efe0T6DmjcFSHNzZM5r9Yj6HsZNxM7hn4ZHHFqILY5WY0aaCsmYvOiIjsPWmJ09dU3Pw==",
-    "signature_recovery": "AQ==",
-    "r": "SIGPEMiQOWhg5ugY/4efe0T6DmjcFSHNzZM5r9Yj6Hs=",
-    "s": "GTcTO4Z+GRxxaiC2OVmNGmgrJmLzoiI7D1pidPXVNz8=",
-    "m": "yhEwrxWuNBGnPT/L7PNnVWg7gFWNzCYTV+GuX3tKRH8="
-  }
-}
+{"signature":{"signature":"sVM8bT2hgDy8Rn1LygF0SgVJQWrlyoXzE69w7xT6RHEBGw7ZPoKv3WTjd+CrQ4jY5VwQmg3M0AbS66JnzS9GDg==","signature_recovery":"AA==","r":"sVM8bT2hgDy8Rn1LygF0SgVJQWrlyoXzE69w7xT6RHE=","s":"ARsO2T6Cr91k43fgq0OI2OVcEJoNzNAG0uuiZ80vRg4=","m":"br8L1Aq3VxJKrl+OQAUhtgtDzkAOTV1hc06qtkdA1dE="}}

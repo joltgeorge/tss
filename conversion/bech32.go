@@ -6,7 +6,7 @@ import (
 
 func SetupBech32Prefix() {
 	config := sdk.GetConfig()
-	config.SetBech32PrefixForAccount("inv", "invpub")
-	config.SetBech32PrefixForValidator("invv", "invvpub")
-	config.SetBech32PrefixForConsensusNode("invc", "invcpub")
+	config.SetBech32PrefixForAccount("oppy", "oppypub")
+	config.SetBech32PrefixForValidator("oppyval", "oppyvalpub")
+	config.SetBech32PrefixForConsensusNode("oppyvalcons", "oppyvalconspub")
 }

@@ -2,26 +2,26 @@ package conversion
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	tcrypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
 // GetPeerIDFromPubKey get the peer.ID from bech32 format node pub key
 func GetPeerIDFromPubKey(pubkey string) (peer.ID, error) {
-	pk, err := sdk.GetPubKeyFromBech32(sdk.Bech32PubKeyTypeAccPub, pubkey)
+	pk, err := legacybech32.UnmarshalPubKey(legacybech32.AccPK, pubkey)
 	if err != nil {
 		return "", fmt.Errorf("fail to parse account pub key(%s): %w", pubkey, err)
 	}
-	ppk, err := crypto.UnmarshalSecp256k1PublicKey(pk.Bytes())
+	ppk, err := crypto.UnmarshalEd25519PublicKey(pk.Bytes())
 	if err != nil {
 		return "", fmt.Errorf("fail to convert pubkey to the crypto pubkey used in libp2p: %w", err)
 	}
@@ -84,20 +84,20 @@ func GetPubKeyFromPeerID(pID string) (string, error) {
 	pubKey := coskey.PubKey{
 		Key: rawBytes,
 	}
-	return sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pubKey)
+	return legacybech32.MarshalPubKey(legacybech32.AccPK, &pubKey)
 }
 
 func GetPriKey(priKeyString string) (tcrypto.PrivKey, error) {
-	priHexBytes, err := base64.StdEncoding.DecodeString(priKeyString)
+	priBytes, err := base64.StdEncoding.DecodeString(priKeyString)
 	if err != nil {
 		return nil, fmt.Errorf("fail to decode private key: %w", err)
 	}
-	rawBytes, err := hex.DecodeString(string(priHexBytes))
-	if err != nil {
-		return nil, fmt.Errorf("fail to hex decode private key: %w", err)
-	}
-	var priKey secp256k1.PrivKey
-	priKey = rawBytes[:32]
+	//rawBytes, err := hex.DecodeString(string(priHexBytes))
+	//if err != nil {
+	//	return nil, fmt.Errorf("fail to hex decode private key: %w", err)
+	//}
+	var priKey ed25519.PrivKey
+	priKey = priBytes
 	return priKey, nil
 }
 
@@ -112,7 +112,7 @@ func GetPriKeyRawBytes(priKey tcrypto.PrivKey) ([]byte, error) {
 }
 
 func CheckKeyOnCurve(pk string) (bool, error) {
-	pubKey, err := sdk.GetPubKeyFromBech32(sdk.Bech32PubKeyTypeAccPub, pk)
+	pubKey, err := legacybech32.UnmarshalPubKey(legacybech32.AccPK, pk)
 	if err != nil {
 		return false, fmt.Errorf("fail to parse pub key(%s): %w", pk, err)
 	}

@@ -2,25 +2,25 @@ package conversion
 
 import (
 	"encoding/json"
+	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32"
 	"math/big"
 	"sort"
 	"testing"
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
-	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/libp2p/go-libp2p-core/peer"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/libp2p/go-libp2p/core/peer"
 	. "gopkg.in/check.v1"
 )
 
 var (
-	testPubKeys = [...]string{"thorpub1addwnpepqtdklw8tf3anjz7nn5fly3uvq2e67w2apn560s4smmrt9e3x52nt2svmmu3", "thorpub1addwnpepqtspqyy6gk22u37ztra4hq3hdakc0w0k60sfy849mlml2vrpfr0wvm6uz09", "thorpub1addwnpepq2ryyje5zr09lq7gqptjwnxqsy2vcdngvwd6z7yt5yjcnyj8c8cn559xe69", "thorpub1addwnpepqfjcw5l4ay5t00c32mmlky7qrppepxzdlkcwfs2fd5u73qrwna0vzag3y4j"}
+	testPubKeys = []string{"oppypub1zcjduepqjykgrc8kehvvauxuq9regzvueec2lz3xwtcpf9mw77pu5h8z9r2sysjdf9", "oppypub1zcjduepqspqxa9406qvr0jrtxdlc52tul6lfx4ppxctgaxefyccdvk95e8eqklumzy", "oppypub1zcjduepqxhdum6ce45xympd2kw7dz64lkkvvul6ck2zlh6de22xs4k64039sjv9l3p", "oppypub1zcjduepqeu2qzchm86zxhf2jw9jqj40u86wh7cyk7dv2qdlc3reuvm8pwc5q0nqqwx"}
 	testPeers   = []string{
-		"16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh",
-		"16Uiu2HAm2FzqoUdS6Y9Esg2EaGcAG5rVe1r6BFNnmmQr2H3bqafa",
-		"16Uiu2HAmACG5DtqmQsHtXg4G2sLS65ttv84e7MrL4kapkjfmhxAp",
-		"16Uiu2HAmAWKWf5vnpiAhfdSQebTbbB3Bg35qtyG7Hr4ce23VFA8V",
+		"12D3KooWKb4eWT3mxHCvMGp3pzYfi3R22BAQ6LG5AebsqjFGYJsN",
+		"12D3KooWJT1LZcwCJ321umRW2mWFE3ooiKzkuzHJVmtUPjzfYbfw",
+		"12D3KooWDScAyrV1SnUPD4PrcE2PpFvu2aoMHUddpaJSfkyBGGVY",
+		"12D3KooWPkiFkYHxgUhfahdSVh23rnFxXVUT5k1RpLqPTNzkpCb1",
 	}
 )
 
@@ -36,7 +36,7 @@ func (p *ConversionTestSuite) SetUpTest(c *C) {
 	SetupBech32Prefix()
 	p.testPubKeys = testPubKeys[:]
 	sort.Strings(p.testPubKeys)
-	p.localPeerID, err = peer.Decode("16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh")
+	p.localPeerID, err = peer.Decode("12D3KooWPkiFkYHxgUhfahdSVh23rnFxXVUT5k1RpLqPTNzkpCb1")
 	c.Assert(err, IsNil)
 }
 func TestPackage(t *testing.T) { TestingT(t) }
@@ -66,15 +66,16 @@ func (p *ConversionTestSuite) TestGetParties(c *C) {
 		Key: localParty.Key[:],
 	}
 	c.Assert(err, IsNil)
-	got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
+	got, err := legacybech32.MarshalPubKey(legacybech32.AccPK, &pk)
 	c.Assert(err, IsNil)
+
 	c.Assert(got, Equals, p.testPubKeys[0])
 	var gotKeys []string
 	for _, val := range partiesID {
 		pk := coskey.PubKey{
 			Key: val.Key,
 		}
-		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
+		got, err := legacybech32.MarshalPubKey(legacybech32.AccPK, &pk)
 		c.Assert(err, IsNil)
 		gotKeys = append(gotKeys, got)
 	}
@@ -104,12 +105,13 @@ func (p *ConversionTestSuite) TestGetPeerIDFromPartyID(c *C) {
 }
 
 func (p *ConversionTestSuite) TestGetPeerIDFromSecp256PubKey(c *C) {
+	sort.Strings(p.testPubKeys)
 	_, localParty, err := GetParties(p.testPubKeys, p.testPubKeys[0])
 	c.Assert(err, IsNil)
-	got, err := GetPeerIDFromSecp256PubKey(localParty.Key[:])
+	got, err := GetPeerIDFromEd25519PubKey(localParty.Key[:])
 	c.Assert(err, IsNil)
 	c.Assert(got, Equals, p.localPeerID)
-	_, err = GetPeerIDFromSecp256PubKey(nil)
+	_, err = GetPeerIDFromEd25519PubKey(nil)
 	c.Assert(err, NotNil)
 }
 
@@ -190,7 +192,7 @@ func (p *ConversionTestSuite) TestSetupPartyIDMap(c *C) {
 		pk := coskey.PubKey{
 			Key: el.Key,
 		}
-		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
+		got, err := legacybech32.MarshalPubKey(legacybech32.AccPK, &pk)
 		c.Assert(err, IsNil)
 		pubKeys = append(pubKeys, got)
 	}
@@ -223,6 +225,6 @@ func (p *ConversionTestSuite) TestTssPubKey(c *C) {
 	c.Assert(json.Unmarshal([]byte(`{"Coords":[70074650318631491136896111706876206496089700125696166275258483716815143842813,72125378038650252881868972131323661098816214918201601489154946637636730727892]}`), &point), IsNil)
 	pk, addr, err = GetTssPubKey(point)
 	c.Assert(err, IsNil)
-	c.Assert(pk, Equals, "thorpub1addwnpepq2dwek9hkrlxjxadrlmy9fr42gqyq6029q0hked46l3u6a9fxqel6tma5eu")
-	c.Assert(addr.String(), Equals, "bnb17l7cyxqzg4xymnl0alrhqwja276s3rns4256c2")
+	c.Assert(pk, Equals, "oppypub1addwnpepq2dwek9hkrlxjxadrlmy9fr42gqyq6029q0hked46l3u6a9fxqel6v0rcq9")
+	c.Assert(addr.String(), Equals, "oppy17l7cyxqzg4xymnl0alrhqwja276s3rns9ep2zu")
 }

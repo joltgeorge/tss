@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"log"
 	"os"
 	"os/signal"
@@ -14,13 +15,12 @@ import (
 
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"gitlab.com/thorchain/binance-sdk/common/types"
 
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/p2p"
-	"github.com/joltgeorge/tss/tss"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/p2p"
+	"github.com/joltify-finance/tss/tss"
 )
 
 var (
@@ -81,14 +81,14 @@ func main() {
 		return
 	}
 
-	var priKey secp256k1.PrivKey
-	priKey = priKeyBytes[:32]
+	var privKey ed25519.PrivKey
+	privKey = priKeyBytes
 
 	// init tss module
 	tss, err := tss.NewTss(
 		addr.AddrList(p2pConf.BootstrapPeers),
 		p2pConf.Port,
-		priKey,
+		privKey,
 		p2pConf.RendezvousString,
 		baseFolder,
 		tssConf,

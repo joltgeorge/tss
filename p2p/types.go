@@ -6,6 +6,10 @@ import (
 	maddr "github.com/multiformats/go-multiaddr"
 )
 
+const (
+	JOINPARTYSIZE = 128
+)
+
 // A new type we need for writing a custom flag parser
 type addrList []maddr.Multiaddr
 

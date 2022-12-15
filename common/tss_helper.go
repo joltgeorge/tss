@@ -17,13 +17,13 @@ import (
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/messages"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/messages"
 )
 
 func Contains(s []*btss.PartyID, e *btss.PartyID) bool {

@@ -13,12 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 
-	"github.com/joltgeorge/tss/blame"
-	"github.com/joltgeorge/tss/common"
-	"github.com/joltgeorge/tss/conversion"
-	"github.com/joltgeorge/tss/messages"
-	"github.com/joltgeorge/tss/p2p"
-	"github.com/joltgeorge/tss/storage"
+	"github.com/joltify-finance/tss/blame"
+	"github.com/joltify-finance/tss/common"
+	"github.com/joltify-finance/tss/conversion"
+	"github.com/joltify-finance/tss/messages"
+	"github.com/joltify-finance/tss/p2p"
+	"github.com/joltify-finance/tss/storage"
 )
 
 type TssKeyGen struct {
@@ -97,7 +97,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	err1 := conversion.SetupIDMaps(partyIDMap, tKeyGen.tssCommonStruct.PartyIDtoP2PID)
 	err2 := conversion.SetupIDMaps(partyIDMap, blameMgr.PartyIDtoP2PID)
 	if err1 != nil || err2 != nil {
-		tKeyGen.logger.Error().Msgf("error in creating mapping between partyID and P2P ID")
+		tKeyGen.logger.Error().Msgf("error in creating mapping between partyID and P2P ID with err %v\n", err1)
 		return nil, err
 	}
 	// we never run multi keygen, so the moniker is set to default empty value
